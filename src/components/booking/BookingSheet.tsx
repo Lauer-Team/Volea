@@ -1,0 +1,431 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { EQUIPMENT, equipmentById, HOURS, ME, TYPE_LABEL } from "@/lib/data";
+import type { TFunction } from "@/lib/i18n";
+import type { Cart, Court, Lang } from "@/lib/types";
+import { addMin, iconBtnStyle } from "@/lib/utils";
+import { Badge, Button, CourtDiagram, Stepper } from "@/components/ui";
+import { Icon } from "@/components/ui/Icon";
+import type { IconName } from "@/components/ui/Icon";
+
+interface BookingSheetProps {
+  t: TFunction;
+  lang: Lang;
+  open: boolean;
+  court: Court | null;
+  slotIndex: number;
+  cart: Cart;
+  addGear: (id: string) => void;
+  removeGear: (id: string) => void;
+  onClose: () => void;
+}
+
+const gearIcon: Record<string, IconName> = {
+  racket: "trophy",
+  ball: "court",
+  shoe: "user",
+  extra: "star",
+};
+
+function SummaryBlock({
+  t,
+  court,
+  time,
+  players,
+  gearLines,
+  total,
+  flat,
+}: {
+  t: TFunction;
+  court: Court;
+  time: string;
+  players: number;
+  gearLines: [string, number][];
+  total: number;
+  flat?: boolean;
+}) {
+  const rows: [string, string | number][] = [
+    [t("court"), court.name],
+    [t("time"), `${time}–${addMin(time)}`],
+    [t("players"), players],
+  ];
+  return (
+    <div className="col gap-2" style={{ fontSize: 14 }}>
+      {!flat && (
+        <div className="eyebrow" style={{ marginBottom: 6 }}>
+          {t("summary")}
+        </div>
+      )}
+      {rows.map(([k, v]) => (
+        <div key={k} className="row" style={{ justifyContent: "space-between" }}>
+          <span className="muted">{k}</span>
+          <span style={{ fontWeight: 600 }}>{v}</span>
+        </div>
+      ))}
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <span className="muted">{t("court")}</span>
+        <span>{court.price} €</span>
+      </div>
+      {gearLines.map(([id, q]) => {
+        const e = equipmentById(id)!;
+        return (
+          <div key={id} className="row" style={{ justifyContent: "space-between" }}>
+            <span className="muted">
+              {q}× {e.name}
+            </span>
+            <span>{q * e.price} €</span>
+          </div>
+        );
+      })}
+      <div style={{ height: 1, background: "var(--line)", margin: "6px 0" }} />
+      <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
+        <span style={{ fontWeight: 600 }}>{t("total")}</span>
+        <span className="display" style={{ fontSize: 22, color: "var(--accent)" }}>
+          {total} €
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export function BookingSheet({
+  t,
+  lang,
+  open,
+  court,
+  slotIndex,
+  cart,
+  addGear,
+  removeGear,
+  onClose,
+}: BookingSheetProps) {
+  const [step, setStep] = useState(0);
+  const [players, setPlayers] = useState(4);
+  const [payWith, setPayWith] = useState("card");
+
+  useEffect(() => {
+    if (open && court) {
+      setStep(0);
+      setPlayers(court.mode === "Einzel" ? 2 : 4);
+    }
+  }, [open, court]);
+
+  if (!open || !court) return null;
+
+  const time = HOURS[slotIndex];
+  const gearTotal = Object.entries(cart).reduce(
+    (s, [id, q]) => s + (equipmentById(id)?.price || 0) * q,
+    0
+  );
+  const total = court.price + gearTotal;
+  const gearLines = Object.entries(cart).filter(([, q]) => q > 0) as [string, number][];
+  const steps = [t("newBooking"), t("equipment"), t("pay"), t("done")];
+  const playerOptions = court.mode === "Einzel" ? [1, 2] : [1, 2, 3, 4];
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", justifyContent: "flex-end" }}>
+      <div
+        role="presentation"
+        onClick={onClose}
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "rgba(8,7,5,0.55)",
+          backdropFilter: "blur(3px)",
+          animation: "viewIn .25s both",
+        }}
+      />
+      <div
+        className="col"
+        style={{
+          position: "relative",
+          width: "min(480px, 100%)",
+          height: "100%",
+          background: "var(--surface)",
+          borderLeft: "1px solid var(--line-strong)",
+          boxShadow: "-30px 0 80px -40px rgba(0,0,0,.7)",
+          animation: "sheetIn .32s cubic-bezier(.2,.7,.2,1) both",
+        }}
+      >
+        <div className="row" style={{ justifyContent: "space-between", padding: "18px 22px", borderBottom: "1px solid var(--line)" }}>
+          <div className="row gap-2">
+            {step > 0 && step < 3 && (
+              <button type="button" onClick={() => setStep(step - 1)} style={iconBtnStyle}>
+                <Icon name="arrowL" size={18} />
+              </button>
+            )}
+            <span className="display" style={{ fontSize: 20 }}>
+              {steps[step]}
+            </span>
+          </div>
+          <button type="button" onClick={onClose} style={iconBtnStyle}>
+            <Icon name="close" size={18} />
+          </button>
+        </div>
+
+        {step < 3 && (
+          <div className="row gap-2" style={{ padding: "14px 22px 0" }}>
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                style={{
+                  flex: 1,
+                  height: 4,
+                  borderRadius: 999,
+                  background: i <= step ? "var(--accent)" : "var(--surface-3)",
+                  transition: "background .3s",
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        <div className="grow" style={{ overflowY: "auto", padding: 22 }}>
+          {step < 3 && (
+            <div className="card" style={{ padding: 16, display: "flex", gap: 14, alignItems: "center", marginBottom: 20, background: "var(--surface-2)" }}>
+              <div style={{ width: 96, flexShrink: 0 }}>
+                <CourtDiagram w={96} accent single={court.mode === "Einzel"} />
+              </div>
+              <div className="grow">
+                <div className="row gap-2">
+                  <span style={{ fontWeight: 600, fontSize: 17 }}>{court.name}</span>
+                  <Badge soft>{TYPE_LABEL[court.type][lang]}</Badge>
+                </div>
+                <div className="row gap-3 muted" style={{ fontSize: 13, marginTop: 6 }}>
+                  <span className="row gap-1">
+                    <Icon name="clock" size={14} />
+                    {time}–{addMin(time)}
+                  </span>
+                  <span className="row gap-1">
+                    <Icon name="court" size={14} />
+                    {court.mode}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 0 && (
+            <div className="col gap-5">
+              <div>
+                <div className="eyebrow" style={{ marginBottom: 10 }}>
+                  {t("players")}
+                </div>
+                <div className="row gap-2">
+                  {playerOptions.map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setPlayers(n)}
+                      style={{
+                        flex: 1,
+                        padding: "14px 0",
+                        borderRadius: 12,
+                        cursor: "pointer",
+                        fontFamily: "var(--font-display)",
+                        fontSize: 22,
+                        border: `1px solid ${players === n ? "var(--accent)" : "var(--line-strong)"}`,
+                        background: players === n ? "var(--soon-soft)" : "transparent",
+                        color: players === n ? "var(--accent)" : "var(--ink-2)",
+                        transition: "all .18s",
+                      }}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="card" style={{ padding: 16, background: "var(--surface-2)" }}>
+                <div className="row" style={{ justifyContent: "space-between" }}>
+                  <div className="row gap-2">
+                    <Icon name="gear" size={18} style={{ color: "var(--accent)" }} />
+                    <span style={{ fontWeight: 600 }}>{t("addGear")}</span>
+                  </div>
+                  <Button size="sm" variant="ghost" iconRight="arrowR" onClick={() => setStep(1)}>
+                    {t("rent")}
+                  </Button>
+                </div>
+                {gearLines.length > 0 && (
+                  <div className="muted" style={{ fontSize: 12.5, marginTop: 10 }}>
+                    {gearLines.map(([id, q]) => `${q}× ${equipmentById(id)!.name}`).join(" · ")}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {step === 1 && (
+            <div className="col gap-3">
+              {EQUIPMENT.map((e) => {
+                const q = cart[e.id] || 0;
+                return (
+                  <div
+                    key={e.id}
+                    className="row"
+                    style={{
+                      gap: 12,
+                      padding: "12px 14px",
+                      border: "1px solid var(--line)",
+                      borderRadius: 12,
+                      background: q ? "var(--soon-soft)" : "transparent",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: 9,
+                        background: "var(--surface-3)",
+                        display: "grid",
+                        placeItems: "center",
+                        color: "var(--accent)",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Icon name={gearIcon[e.cat]} size={18} />
+                    </div>
+                    <div className="grow" style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{e.name}</div>
+                      <div className="muted" style={{ fontSize: 12 }}>
+                        {e.price} € {t("perItem")}
+                      </div>
+                    </div>
+                    {q === 0 ? (
+                      <button type="button" onClick={() => addGear(e.id)} style={iconBtnStyle}>
+                        <Icon name="plus" size={16} />
+                      </button>
+                    ) : (
+                      <div className="row gap-2" style={{ background: "var(--surface)", borderRadius: 999, padding: 2, border: "1px solid var(--line)" }}>
+                        <Stepper icon="minus" onClick={() => removeGear(e.id)} />
+                        <span className="mono" style={{ minWidth: 16, textAlign: "center", fontWeight: 600, fontSize: 13 }}>
+                          {q}
+                        </span>
+                        <Stepper icon="plus" onClick={() => addGear(e.id)} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="col gap-5">
+              <div className="col gap-2">
+                <div className="eyebrow" style={{ marginBottom: 4 }}>
+                  {t("payWith")}
+                </div>
+                {[
+                  { id: "credit", label: t("clubCredit"), sub: `${ME.credit} € ${t("availableNow")}`, icon: "euro" as IconName },
+                  { id: "card", label: t("card"), sub: "•••• 4729 · Visa", icon: "card" as IconName },
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setPayWith(m.id)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "14px 16px",
+                      borderRadius: 12,
+                      cursor: "pointer",
+                      textAlign: "left",
+                      border: `1px solid ${payWith === m.id ? "var(--accent)" : "var(--line-strong)"}`,
+                      background: payWith === m.id ? "var(--soon-soft)" : "transparent",
+                    }}
+                  >
+                    <Icon name={m.icon} size={20} style={{ color: "var(--accent)" }} />
+                    <div className="grow">
+                      <div style={{ fontWeight: 600, fontSize: 14.5 }}>{m.label}</div>
+                      <div className="muted" style={{ fontSize: 12.5 }}>
+                        {m.sub}
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: "50%",
+                        border: `2px solid ${payWith === m.id ? "var(--accent)" : "var(--line-strong)"}`,
+                        display: "grid",
+                        placeItems: "center",
+                      }}
+                    >
+                      {payWith === m.id && (
+                        <div style={{ width: 9, height: 9, borderRadius: "50%", background: "var(--accent)" }} />
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <SummaryBlock t={t} court={court} time={time} players={players} gearLines={gearLines} total={total} />
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="col" style={{ alignItems: "center", textAlign: "center", paddingTop: 30, gap: 18 }}>
+              <div
+                style={{
+                  width: 84,
+                  height: 84,
+                  borderRadius: "50%",
+                  background: "var(--free-soft)",
+                  border: "1px solid color-mix(in oklab, var(--free) 40%, transparent)",
+                  display: "grid",
+                  placeItems: "center",
+                  animation: "popIn .4s both",
+                }}
+              >
+                <Icon name="check" size={40} style={{ color: "var(--free)" }} />
+              </div>
+              <div>
+                <h2 className="display" style={{ fontSize: 26, margin: "0 0 6px" }}>
+                  {t("confirmed")}
+                </h2>
+                <p className="muted" style={{ margin: 0, fontSize: 14.5 }}>
+                  {court.name} · {t("today")} · {time}–{addMin(time)}
+                </p>
+              </div>
+              <div className="card" style={{ padding: 18, width: "100%", background: "var(--surface-2)" }}>
+                <SummaryBlock t={t} court={court} time={time} players={players} gearLines={gearLines} total={total} flat />
+              </div>
+              <Button full size="lg" onClick={onClose} icon="check">
+                {t("viewBooking")}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {step < 3 && (
+          <div className="row" style={{ justifyContent: "space-between", padding: "16px 22px", borderTop: "1px solid var(--line)", gap: 16 }}>
+            <div>
+              <div className="muted" style={{ fontSize: 11.5 }}>
+                {t("total")}
+              </div>
+              <div className="display" style={{ fontSize: 26 }}>
+                {total} €
+              </div>
+            </div>
+            {step === 0 && (
+              <Button size="lg" iconRight="arrowR" onClick={() => setStep(2)}>
+                {t("continue")}
+              </Button>
+            )}
+            {step === 1 && (
+              <Button size="lg" iconRight="arrowR" onClick={() => setStep(2)}>
+                {t("continue")}
+              </Button>
+            )}
+            {step === 2 && (
+              <Button size="lg" icon="check" onClick={() => setStep(3)}>
+                {t("payNow")}
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
