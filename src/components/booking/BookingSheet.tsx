@@ -241,7 +241,24 @@ export function BookingSheet({
                     |
                   </span>
                 )}
-                <span style={{ color: i <= step ? "var(--accent)" : "var(--ink-faint)" }}>{t(key)}</span>
+                <button
+                  type="button"
+                  onClick={() => setStep(i)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 0,
+                    fontFamily: "inherit",
+                    fontSize: "inherit",
+                    fontWeight: "inherit",
+                    color: i === step ? "var(--accent)" : i < step ? "var(--ink-2)" : "var(--ink-faint)",
+                    textDecoration: i === step ? "underline" : "none",
+                    textUnderlineOffset: 3,
+                  }}
+                >
+                  {t(key)}
+                </button>
               </span>
             ))}
           </div>
@@ -557,12 +574,14 @@ export function BookingSheet({
         {step < 3 && (
           <div className="row" style={{ justifyContent: "space-between", padding: "16px 22px", borderTop: "1px solid var(--line)", gap: 16 }}>
             <div>
-              <div className="muted" style={{ fontSize: 11.5 }}>
-                {selectedFriends.length > 0 && step < 3 ? t("yourShare") : t("total")}
-              </div>
-              <div className="display" style={{ fontSize: 26 }}>
-                {selectedFriends.length > 0 && step < 3 ? sharePrice : total} €
-              </div>
+              <div className="muted" style={{ fontSize: 11.5 }}>{t("total")}</div>
+              <div className="display" style={{ fontSize: 26 }}>{total} €</div>
+              {selectedFriends.length > 0 && (
+                <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>
+                  {t("yourShare")}:{" "}
+                  <strong style={{ color: "var(--accent)", fontWeight: 600 }}>{sharePrice} €</strong>
+                </div>
+              )}
             </div>
             {step === 0 && (
               <Button size="lg" iconRight="arrowR" onClick={() => setStep(1)}>

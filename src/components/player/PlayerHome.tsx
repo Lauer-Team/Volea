@@ -30,7 +30,6 @@ function areConsecutive(slots: number[]): boolean {
 export function PlayerHome({ t, lang, profile, onBook, goEquip }: PlayerHomeProps) {
   const [filterFree, setFilterFree] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
-  const [calendarPicked, setCalendarPicked] = useState(false);
   const [selectedCourtId, setSelectedCourtId] = useState<number | null>(null);
   const [selectedSlots, setSelectedSlots] = useState<number[]>([]);
   const [toast, setToast] = useState<string | null>(null);
@@ -47,7 +46,6 @@ export function PlayerHome({ t, lang, profile, onBook, goEquip }: PlayerHomeProp
 
   const handleDateSelect = useCallback((d: Date) => {
     setSelectedDate(d);
-    setCalendarPicked(true);
     setSelectedCourtId(null);
     setSelectedSlots([]);
     window.setTimeout(() => {
@@ -117,8 +115,10 @@ export function PlayerHome({ t, lang, profile, onBook, goEquip }: PlayerHomeProp
     selectedSlots.length > 0
       ? `${HOURS[selectedSlots[0]]}–${addMin(HOURS[selectedSlots[selectedSlots.length - 1]])}`
       : null;
+  const bookingTotal = selectedCourt ? selectedCourt.price * selectedSlots.length : 0;
 
   return (
+    <>
     <div className="view-in col gap-6" style={{ padding: "var(--page-pad)", paddingBottom: selectedSlots.length ? 100 : undefined }}>
       <div className="row" style={{ justifyContent: "space-between", flexWrap: "wrap", gap: 16, alignItems: "flex-end" }}>
         <div>
@@ -153,29 +153,8 @@ export function PlayerHome({ t, lang, profile, onBook, goEquip }: PlayerHomeProp
       </div>
 
       <div className="col gap-3">
-        <div className="eyebrow">{calendarPicked ? t("pickDate") : t("selectDay")}</div>
-        {calendarPicked ? (
-          <div className="row gap-3" style={{ flexWrap: "wrap", alignItems: "center" }}>
-            <MonthCalendar selected={selectedDate} onSelect={handleDateSelect} compact lang={lang} />
-            <button
-              type="button"
-              onClick={() => setCalendarPicked(false)}
-              className="muted"
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                fontSize: 13,
-                fontFamily: "var(--font-ui)",
-                textDecoration: "underline",
-              }}
-            >
-              {t("selectDay")}
-            </button>
-          </div>
-        ) : (
-          <MonthCalendar selected={selectedDate} onSelect={handleDateSelect} lang={lang} />
-        )}
+        <div className="eyebrow">{t("selectDay")}</div>
+        <MonthCalendar selected={selectedDate} onSelect={handleDateSelect} lang={lang} />
       </div>
 
       <div ref={gridRef} className="card" style={{ padding: "20px 20px 22px", scrollMarginTop: 24 }}>
@@ -236,22 +215,27 @@ export function PlayerHome({ t, lang, profile, onBook, goEquip }: PlayerHomeProp
           {toast}
         </div>
       )}
-
-      {selectedSlots.length > 0 && selectedCourt && (
-        <div className="book-bar">
-          <div>
-            <div className="muted" style={{ fontSize: 12 }}>
-              {selectedCourt.name} · {selectedSlots.length} {t("slotsSelected")}
-            </div>
-            <div className="display" style={{ fontSize: 20 }}>
-              {timeRange}
-            </div>
-          </div>
-          <Button size="lg" iconRight="arrowR" onClick={handleBook}>
-            {t("book")}
-          </Button>
-        </div>
-      )}
     </div>
+
+    {selectedSlots.length > 0 && selectedCourt && (
+      <div className="book-bar">
+        <div>
+          <div className="muted" style={{ fontSize: 12 }}>
+            {selectedCourt.name} · {selectedSlots.length} {t("slotsSelected")}
+          </div>
+          <div className="display" style={{ fontSize: 20 }}>
+            {timeRange}
+          </div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+            {t("total")}:{" "}
+            <strong style={{ color: "var(--accent)", fontWeight: 600 }}>{bookingTotal} €</strong>
+          </div>
+        </div>
+        <Button size="lg" iconRight="arrowR" onClick={handleBook}>
+          {t("book")}
+        </Button>
+      </div>
+    )}
+    </>
   );
 }

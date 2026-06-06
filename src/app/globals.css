@@ -300,7 +300,8 @@ button {
   right: var(--page-pad);
   bottom: calc(24px + env(safe-area-inset-bottom));
   left: auto;
-  z-index: 40;
+  z-index: 45;
+  pointer-events: auto;
   display: flex;
   align-items: center;
   gap: 20px;
