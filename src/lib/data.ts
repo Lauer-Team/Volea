@@ -2,6 +2,8 @@ import type {
   Court,
   Equipment,
   FeedItem,
+  Friend,
+  SharedBooking,
   SlotCell,
   UserProfile,
   WeekDay,
@@ -302,3 +304,33 @@ export function cartTotal(cart: Record<string, number>) {
 export function cartCount(cart: Record<string, number>) {
   return Object.values(cart).reduce((a, b) => a + b, 0);
 }
+
+export const CLUB_FRIENDS: Friend[] = [
+  { id: "f1", name: "L. Hoffmann", initials: "LH", level: "Fortgeschritten · 4.0", email: "l.hoffmann@club.de" },
+  { id: "f2", name: "S. Keller", initials: "SK", level: "Mittel · 3.5", email: "s.keller@club.de" },
+  { id: "f3", name: "J. Vogt", initials: "JV", level: "Profi · 4.5", email: "j.vogt@club.de" },
+  { id: "f4", name: "A. Reza", initials: "AR", level: "Einsteiger · 2.5", email: "a.reza@club.de" },
+  { id: "f5", name: "T. Wolf", initials: "TW", level: "Mittel · 3.0", email: "t.wolf@club.de" },
+  { id: "f6", name: "N. Brandt", initials: "NB", level: "Fortgeschritten · 3.5", email: "n.brandt@club.de" },
+  { id: "f7", name: "C. Lang", initials: "CL", level: "Mittel · 3.5", email: "c.lang@club.de" },
+];
+
+export const PENDING_SHARED: SharedBooking[] = [
+  {
+    id: "sb1",
+    court: 3,
+    date: "So, 8. Juni",
+    slot: 5,
+    time: "15:30",
+    totalPrice: 52,
+    gear: [],
+    organizerName: "S. Keller",
+    organizerEmail: "s.keller@club.de",
+    participants: [
+      { friendId: "me", name: "Du", initials: "JL", status: "pending", share: 13 },
+      { friendId: "f4", name: "A. Reza", initials: "AR", status: "confirmed", share: 13 },
+      { friendId: "f5", name: "T. Wolf", initials: "TW", status: "confirmed", share: 13 },
+    ],
+    status: "awaiting",
+  },
+];

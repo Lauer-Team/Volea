@@ -188,4 +188,16 @@ export async function signOut() {
   await sb.auth.signOut();
 }
 
+export async function getStoredSession(): Promise<{ email: string; name: string } | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+  const { data } = await sb.auth.getSession();
+  const session = data.session;
+  if (!session?.user?.email) return null;
+  const name =
+    (session.user.user_metadata?.name as string | undefined) ||
+    session.user.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return { email: session.user.email, name };
+}
+
 export { isSupabaseConfigured };

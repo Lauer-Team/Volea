@@ -3,11 +3,16 @@
 import { useEffect, useState } from "react";
 import { EQUIPMENT, equipmentById, HOURS } from "@/lib/data";
 import type { TFunction } from "@/lib/i18n";
-import type { Cart, Court, Lang, UserProfile } from "@/lib/types";
+import type { Booking, Cart, Court, Friend, Lang, UserProfile } from "@/lib/types";
 import { addMin, iconBtnStyle } from "@/lib/utils";
 import { Badge, Button, CourtDiagram, Stepper } from "@/components/ui";
 import { Icon } from "@/components/ui/Icon";
 import type { IconName } from "@/components/ui/Icon";
+
+export interface BookingCompletePayload {
+  booking: Omit<Booking, "id">;
+  sharedFriendIds: string[];
+}
 
 interface BookingSheetProps {
   t: TFunction;
@@ -17,9 +22,11 @@ interface BookingSheetProps {
   slotIndices: number[];
   cart: Cart;
   profile: UserProfile;
+  friends: Friend[];
   addGear: (id: string) => void;
   removeGear: (id: string) => void;
   onClose: () => void;
+  onComplete?: (payload: BookingCompletePayload) => void;
 }
 
 const gearIcon: Record<string, IconName> = {
@@ -104,20 +111,61 @@ export function BookingSheet({
   slotIndices,
   cart,
   profile,
+  friends,
   addGear,
   removeGear,
   onClose,
+  onComplete,
 }: BookingSheetProps) {
   const [step, setStep] = useState(0);
   const [players, setPlayers] = useState(4);
   const [payWith, setPayWith] = useState("card");
+  const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
 
   useEffect(() => {
     if (open && court) {
       setStep(0);
       setPlayers(court.mode === "Einzel" ? 2 : 4);
+      setSelectedFriends([]);
     }
   }, [open, court]);
+
+  function toggleFriend(id: string) {
+    setSelectedFriends((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function handlePay() {
+    if (!court) return;
+    const sorted = [...slotIndices].sort((a, b) => a - b);
+    const timeStart = HOURS[sorted[0]];
+    const slotCount = sorted.length;
+    const gearTotal = Object.entries(cart).reduce((s, [id, q]) => s + (equipmentById(id)?.price || 0) * q, 0);
+    const total = court.price * slotCount + gearTotal;
+    const shareCount = selectedFriends.length + 1;
+    const sharePrice = Math.round((total / shareCount) * 100) / 100;
+    const gearLines = Object.entries(cart)
+      .filter(([, q]) => q > 0)
+      .map(([id, q]) => `${q}× ${equipmentById(id)!.name}`);
+    const sharedNames = friends.filter((f) => selectedFriends.includes(f.id)).map((f) => f.name);
+
+    onComplete?.({
+      booking: {
+        court: court.id,
+        date: "Heute",
+        slot: sorted[0],
+        time: timeStart,
+        players,
+        gear: gearLines,
+        price: selectedFriends.length > 0 ? sharePrice : total,
+        status: selectedFriends.length > 0 ? t("awaitingFriends") : t("confirmed"),
+        shared: selectedFriends.length > 0,
+        sharedWith: sharedNames,
+        sharePrice: selectedFriends.length > 0 ? sharePrice : undefined,
+      },
+      sharedFriendIds: selectedFriends,
+    });
+    setStep(3);
+  }
 
   if (!open || !court || slotIndices.length === 0) return null;
 
@@ -130,6 +178,8 @@ export function BookingSheet({
   const gearLines = Object.entries(cart).filter(([, q]) => q > 0) as [string, number][];
   const steps = [t("newBooking"), t("equipment"), t("pay"), t("done")];
   const playerOptions = court.mode === "Einzel" ? [1, 2] : [1, 2, 3, 4];
+  const shareCount = selectedFriends.length + 1;
+  const sharePrice = Math.round((total / shareCount) * 100) / 100;
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", justifyContent: "flex-end" }}>
@@ -252,6 +302,63 @@ export function BookingSheet({
                     </button>
                   ))}
                 </div>
+              </div>
+              <div>
+                <div className="eyebrow" style={{ marginBottom: 10 }}>
+                  {t("shareWithFriends")}
+                </div>
+                <p className="muted" style={{ fontSize: 12.5, margin: "0 0 10px", lineHeight: 1.5 }}>
+                  {t("shareBookingInfo")}
+                </p>
+                <div className="col gap-2">
+                  {friends.map((f) => {
+                    const on = selectedFriends.includes(f.id);
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => toggleFriend(f.id)}
+                        className="row gap-3"
+                        style={{
+                          width: "100%",
+                          padding: "10px 12px",
+                          borderRadius: 10,
+                          cursor: "pointer",
+                          textAlign: "left",
+                          border: `1px solid ${on ? "var(--accent)" : "var(--line)"}`,
+                          background: on ? "var(--soon-soft)" : "transparent",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: "50%",
+                            background: "var(--surface-3)",
+                            display: "grid",
+                            placeItems: "center",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: on ? "var(--accent)" : "var(--ink-2)",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {f.initials}
+                        </div>
+                        <div className="grow" style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: 13.5 }}>{f.name}</div>
+                          <div className="muted" style={{ fontSize: 11.5 }}>{f.level}</div>
+                        </div>
+                        {on && <Icon name="check" size={16} style={{ color: "var(--accent)" }} />}
+                      </button>
+                    );
+                  })}
+                </div>
+                {selectedFriends.length > 0 && (
+                  <div className="muted" style={{ fontSize: 12, marginTop: 10 }}>
+                    {t("yourShare")}: <strong style={{ color: "var(--accent)" }}>{sharePrice} €</strong> ({shareCount} {t("players")})
+                  </div>
+                )}
               </div>
               <div className="card" style={{ padding: 16, background: "var(--surface-2)" }}>
                 <div className="row" style={{ justifyContent: "space-between" }}>
@@ -377,6 +484,19 @@ export function BookingSheet({
                   </button>
                 ))}
               </div>
+              {selectedFriends.length > 0 && (
+                <div className="card" style={{ padding: 14, background: "var(--soon-soft)", border: "1px solid color-mix(in oklab, var(--accent) 30%, transparent)" }}>
+                  <div className="row" style={{ justifyContent: "space-between", fontSize: 14 }}>
+                    <span style={{ fontWeight: 600 }}>{t("splitCost")}</span>
+                    <span className="display" style={{ fontSize: 18, color: "var(--accent)" }}>
+                      {sharePrice} € {t("perPerson")}
+                    </span>
+                  </div>
+                  <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                    {shareCount} {t("players")} · {t("total")} {total} €
+                  </div>
+                </div>
+              )}
               <SummaryBlock
                 t={t}
                 court={court}
@@ -385,7 +505,7 @@ export function BookingSheet({
                 slotCount={slotCount}
                 players={players}
                 gearLines={gearLines}
-                total={total}
+                total={selectedFriends.length > 0 ? sharePrice : total}
               />
             </div>
           )}
@@ -438,10 +558,10 @@ export function BookingSheet({
           <div className="row" style={{ justifyContent: "space-between", padding: "16px 22px", borderTop: "1px solid var(--line)", gap: 16 }}>
             <div>
               <div className="muted" style={{ fontSize: 11.5 }}>
-                {t("total")}
+                {selectedFriends.length > 0 && step < 3 ? t("yourShare") : t("total")}
               </div>
               <div className="display" style={{ fontSize: 26 }}>
-                {total} €
+                {selectedFriends.length > 0 && step < 3 ? sharePrice : total} €
               </div>
             </div>
             {step === 0 && (
@@ -455,7 +575,7 @@ export function BookingSheet({
               </Button>
             )}
             {step === 2 && (
-              <Button size="lg" icon="check" onClick={() => setStep(3)}>
+              <Button size="lg" icon="check" onClick={handlePay}>
                 {t("payNow")}
               </Button>
             )}

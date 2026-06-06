@@ -1,10 +1,21 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Logo, Button } from "@/components/ui";
 import { Icon } from "@/components/ui/Icon";
+import { loadSession } from "@/lib/session";
+import type { AuthUser } from "@/lib/types";
 
 export function LandingPage() {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    setUser(loadSession());
+    setReady(true);
+  }, []);
+
   return (
     <div className="app-bg" data-theme="dark" style={{ minHeight: "100vh" }}>
       <header
@@ -17,11 +28,26 @@ export function LandingPage() {
         }}
       >
         <Logo size={20} href="/" />
-        <Link href="/app/" style={{ textDecoration: "none" }}>
-          <Button variant="outline" size="sm" iconRight="arrowR">
-            Anmelden
-          </Button>
-        </Link>
+        {ready && (
+          <div className="row gap-3" style={{ alignItems: "center" }}>
+            {user ? (
+              <>
+                <span style={{ fontWeight: 600, fontSize: 14.5, color: "var(--ink)" }}>{user.name}</span>
+                <Link href="/app/" style={{ textDecoration: "none" }}>
+                  <Button size="sm" iconRight="arrowR">
+                    Zum Club
+                  </Button>
+                </Link>
+              </>
+            ) : (
+              <Link href="/app/" style={{ textDecoration: "none" }}>
+                <Button variant="outline" size="sm" iconRight="arrowR">
+                  Anmelden
+                </Button>
+              </Link>
+            )}
+          </div>
+        )}
       </header>
 
       <main style={{ maxWidth: 1100, margin: "0 auto", padding: "clamp(32px, 8vh, 80px) var(--page-pad)" }}>

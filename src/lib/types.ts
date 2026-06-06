@@ -45,6 +45,39 @@ export interface Booking {
   gear: string[];
   price: number;
   status: string;
+  shared?: boolean;
+  sharedWith?: string[];
+  sharePrice?: number;
+}
+
+export interface Friend {
+  id: string;
+  name: string;
+  initials: string;
+  level: string;
+  email: string;
+}
+
+export interface SharedBookingParticipant {
+  friendId: string;
+  name: string;
+  initials: string;
+  status: "pending" | "confirmed";
+  share: number;
+}
+
+export interface SharedBooking {
+  id: string;
+  court: number;
+  date: string;
+  slot: number;
+  time: string;
+  totalPrice: number;
+  gear: string[];
+  organizerName: string;
+  organizerEmail: string;
+  participants: SharedBookingParticipant[];
+  status: "awaiting" | "confirmed" | "cancelled";
 }
 
 export interface WeekDay {
@@ -92,6 +125,6 @@ export interface BookingSheetState {
   slots: number[];
 }
 
-export type PlayerView = "home" | "equipment" | "account" | "bookings";
+export type PlayerView = "home" | "equipment" | "account" | "bookings" | "friends";
 export type AdminView = "overview" | "bookings" | "courts";
 export type AppView = PlayerView | AdminView;

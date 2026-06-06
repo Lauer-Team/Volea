@@ -1,18 +1,21 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import { AdminBookings, AdminCourts, AdminOverview } from "@/components/admin/AdminScreens";
 import { BookingSheet } from "@/components/booking/BookingSheet";
+import type { BookingCompletePayload } from "@/components/booking/BookingSheet";
 import { AccountScreen } from "@/components/player/AccountScreen";
 import { BookingsScreen } from "@/components/player/BookingsScreen";
 import { EquipmentScreen } from "@/components/player/EquipmentScreen";
+import { FriendsScreen } from "@/components/player/FriendsScreen";
 import { PlayerHome } from "@/components/player/PlayerHome";
 import { Avatar, Logo, Segmented } from "@/components/ui";
 import { Icon } from "@/components/ui/Icon";
 import type { IconName } from "@/components/ui/Icon";
-import { ADMIN_EMAIL, MY_BOOKINGS, courtById, profileFromAuth } from "@/lib/data";
+import { ADMIN_EMAIL, CLUB_FRIENDS, MY_BOOKINGS, PENDING_SHARED, courtById, initialsFromName, profileFromAuth } from "@/lib/data";
 import { makeT } from "@/lib/i18n";
+import { clearSession, loadSession, saveSession } from "@/lib/session";
 import type {
   AccentKey,
   AdminView,
@@ -27,11 +30,12 @@ import type {
   Lang,
   PlayerView,
   Role,
+  SharedBooking,
   Theme,
   UserProfile,
 } from "@/lib/types";
 import { ACCENTS, DENSITY, FONTS } from "@/lib/utils";
-import { signOut } from "@/lib/supabase/api";
+import { getStoredSession, signOut } from "@/lib/supabase/api";
 
 export function VoleaApp() {
   const [theme, setTheme] = useState<Theme>("dark");
@@ -41,12 +45,42 @@ export function VoleaApp() {
   const [lang, setLang] = useState<Lang>("de");
 
   const [authed, setAuthed] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [role, setRole] = useState<Role>("player");
   const [view, setView] = useState<AppView>("home");
   const [cart, setCart] = useState<Cart>({});
   const [bookings, setBookings] = useState<Booking[]>(MY_BOOKINGS);
+  const [sharedBookings, setSharedBookings] = useState<SharedBooking[]>(PENDING_SHARED);
   const [sheet, setSheet] = useState<BookingSheetState>({ open: false, court: null, slots: [] });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const stored = loadSession();
+      if (stored && !cancelled) {
+        setUser(stored);
+        setAuthed(true);
+        setAuthReady(true);
+        return;
+      }
+      const remote = await getStoredSession();
+      if (remote && !cancelled) {
+        const authUser: AuthUser = {
+          email: remote.email,
+          name: remote.name,
+          initials: initialsFromName(remote.name),
+        };
+        saveSession(authUser);
+        setUser(authUser);
+        setAuthed(true);
+      }
+      if (!cancelled) setAuthReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const t = useMemo(() => makeT(lang), [lang]);
 
@@ -95,6 +129,7 @@ export function VoleaApp() {
   }, [isAdmin]);
 
   const handleAuth = useCallback((authUser: AuthUser) => {
+    saveSession(authUser);
     setUser(authUser);
     setAuthed(true);
     setRole("player");
@@ -103,11 +138,85 @@ export function VoleaApp() {
 
   const handleLogout = useCallback(async () => {
     await signOut();
+    clearSession();
     setAuthed(false);
     setUser(null);
     setRole("player");
     setView("home");
   }, []);
+
+  const handleBookingComplete = useCallback(
+    (payload: BookingCompletePayload) => {
+      const id = `b${Date.now()}`;
+      const newBooking: Booking = { id, ...payload.booking };
+      setBookings((prev) => [...prev, newBooking]);
+
+      if (payload.sharedFriendIds.length > 0 && user) {
+        const friends = CLUB_FRIENDS.filter((f) => payload.sharedFriendIds.includes(f.id));
+        const shareCount = friends.length + 1;
+        const sharePrice = payload.booking.sharePrice ?? Math.round((payload.booking.price * shareCount) / shareCount);
+        const shared: SharedBooking = {
+          id: `sb${Date.now()}`,
+          court: payload.booking.court,
+          date: payload.booking.date,
+          slot: payload.booking.slot,
+          time: payload.booking.time,
+          totalPrice: sharePrice * shareCount,
+          gear: payload.booking.gear,
+          organizerName: user.name,
+          organizerEmail: user.email,
+          participants: [
+            ...friends.map((f) => ({
+              friendId: f.id,
+              name: f.name,
+              initials: f.initials,
+              status: "pending" as const,
+              share: sharePrice,
+            })),
+          ],
+          status: "awaiting",
+        };
+        setSharedBookings((prev) => [...prev, shared]);
+      }
+    },
+    [user]
+  );
+
+  const confirmSharedBooking = useCallback((id: string) => {
+    setSharedBookings((prev) =>
+      prev.map((sb) => {
+        if (sb.id !== id) return sb;
+        const updated = sb.participants.map((p) =>
+          p.friendId === "me" ? { ...p, status: "confirmed" as const } : p
+        );
+        const allConfirmed = updated.every((p) => p.status === "confirmed");
+        return { ...sb, participants: updated, status: allConfirmed ? "confirmed" : "awaiting" };
+      })
+    );
+    const sb = sharedBookings.find((x) => x.id === id);
+    if (sb) {
+      const myPart = sb.participants.find((p) => p.friendId === "me");
+      if (myPart) {
+        setBookings((prev) => [
+          ...prev,
+          {
+            id: `b-share-${id}`,
+            court: sb.court,
+            date: sb.date,
+            slot: sb.slot,
+            time: sb.time,
+            players: sb.participants.length + 1,
+            gear: sb.gear,
+            price: myPart.share,
+            status: "bestätigt",
+            shared: true,
+            sharedWith: [sb.organizerName],
+            sharePrice: myPart.share,
+          },
+        ]);
+      }
+    }
+  }, [sharedBookings]);
 
   const cancelBooking = useCallback((id: string) => {
     setBookings((prev) => prev.filter((b) => b.id !== id));
@@ -124,6 +233,8 @@ export function VoleaApp() {
     [bookings, openBooking]
   );
 
+  if (!authReady) return null;
+
   if (!authed) {
     return (
       <div data-theme={theme} style={rootStyle}>
@@ -135,6 +246,7 @@ export function VoleaApp() {
   const playerNav: { id: PlayerView; label: string; icon: IconName }[] = [
     { id: "home", label: t("courts"), icon: "today" },
     { id: "bookings", label: t("myBookings"), icon: "clock" },
+    { id: "friends", label: t("friends"), icon: "users" },
     { id: "equipment", label: t("equipment"), icon: "gear" },
     { id: "account", label: t("account"), icon: "user" },
   ];
@@ -161,6 +273,8 @@ export function VoleaApp() {
       );
     else if (view === "bookings")
       screen = <BookingsScreen t={t} bookings={bookings} onCancel={cancelBooking} onEdit={editBooking} />;
+    else if (view === "friends")
+      screen = <FriendsScreen t={t} friends={CLUB_FRIENDS} />;
     else if (view === "equipment")
       screen = (
         <EquipmentScreen t={t} lang={lang} cart={cart} addGear={addGear} removeGear={removeGear} goCheckout={() => setView("home")} />
@@ -171,6 +285,8 @@ export function VoleaApp() {
           t={t}
           profile={profile}
           bookings={bookings}
+          sharedBookings={sharedBookings}
+          onConfirmShare={confirmSharedBooking}
           theme={theme}
           accent={accent}
           font={font}
@@ -316,8 +432,10 @@ export function VoleaApp() {
         slotIndices={sheet.slots}
         cart={cart}
         profile={profile}
+        friends={CLUB_FRIENDS}
         addGear={addGear}
         removeGear={removeGear}
+        onComplete={handleBookingComplete}
         onClose={() => setSheet({ open: false, court: null, slots: [] })}
       />
     </div>

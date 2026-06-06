@@ -22,7 +22,8 @@ export type IconName =
   | "logout"
   | "shield"
   | "trophy"
-  | "star";
+  | "star"
+  | "users";
 
 const paths: Record<IconName, React.ReactNode> = {
   today: (
@@ -111,6 +112,14 @@ const paths: Record<IconName, React.ReactNode> = {
     </>
   ),
   star: <path d="M12 3l2.6 5.6 6 .7-4.4 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.4 9.3l6-.7L12 3Z" />,
+  users: (
+    <>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3 20c0-2.8 2.7-5 6-5" />
+      <circle cx="17" cy="9" r="2.6" />
+      <path d="M14 20c0-2.2 1.8-4 4-4" />
+    </>
+  ),
 };
 
 interface IconProps {

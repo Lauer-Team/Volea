@@ -74,9 +74,17 @@ export function MonthCalendar({ selected, onSelect, compact, lang }: MonthCalend
   }
 
   return (
-    <div className="card" style={{ padding: "16px 18px 18px", background: "var(--surface-2)" }}>
-      <div className="row" style={{ justifyContent: "space-between", marginBottom: 14 }}>
-        <span className="display" style={{ fontSize: 18 }}>
+    <div
+      className="card"
+      style={{
+        padding: "10px 12px 12px",
+        background: "var(--surface-2)",
+        maxWidth: 260,
+        width: "100%",
+      }}
+    >
+      <div className="row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
+        <span className="display" style={{ fontSize: 14 }}>
           {months[viewMonth]} {viewYear}
         </span>
       </div>
@@ -84,17 +92,17 @@ export function MonthCalendar({ selected, onSelect, compact, lang }: MonthCalend
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(7, 1fr)",
-          gap: 4,
-          marginBottom: 6,
+          gap: 2,
+          marginBottom: 4,
         }}
       >
         {weekdays.map((w) => (
-          <div key={w} className="mono" style={{ textAlign: "center", fontSize: 11, color: "var(--ink-faint)", fontWeight: 600 }}>
+          <div key={w} className="mono" style={{ textAlign: "center", fontSize: 9, color: "var(--ink-faint)", fontWeight: 600 }}>
             {w}
           </div>
         ))}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
         {days.map((d, i) => {
           if (!d) return <div key={`e-${i}`} />;
           const isToday = sameDay(d, today);
@@ -108,16 +116,17 @@ export function MonthCalendar({ selected, onSelect, compact, lang }: MonthCalend
               onClick={() => onSelect(d)}
               className="mono"
               style={{
-                aspectRatio: "1",
-                borderRadius: 9,
+                height: 26,
+                borderRadius: 6,
                 border: isSelected ? "1px solid var(--accent)" : isToday ? "1px solid var(--line-strong)" : "1px solid transparent",
                 background: isSelected ? "var(--soon-soft)" : "transparent",
                 color: isPast ? "var(--ink-faint)" : isSelected ? "var(--accent)" : "var(--ink)",
                 cursor: isPast ? "default" : "pointer",
                 fontWeight: isSelected || isToday ? 700 : 500,
-                fontSize: 13,
+                fontSize: 11,
                 opacity: isPast ? 0.45 : 1,
                 transition: "background .15s, border-color .15s",
+                padding: 0,
               }}
             >
               {d.getDate()}
