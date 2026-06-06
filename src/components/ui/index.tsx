@@ -1,12 +1,15 @@
 import { Icon, type IconName } from "./Icon";
 
+import Link from "next/link";
+
 interface LogoProps {
   size?: number;
   mark?: boolean;
+  href?: string;
 }
 
-export function Logo({ size = 22, mark = true }: LogoProps) {
-  return (
+export function Logo({ size = 22, mark = true, href }: LogoProps) {
+  const inner = (
     <div className="row gap-2" style={{ alignItems: "center" }}>
       {mark && (
         <svg width={size * 1.15} height={size * 1.15} viewBox="0 0 40 40" aria-hidden>
@@ -26,6 +29,16 @@ export function Logo({ size = 22, mark = true }: LogoProps) {
       </span>
     </div>
   );
+
+  if (href) {
+    return (
+      <Link href={href} style={{ textDecoration: "none", color: "inherit" }}>
+        {inner}
+      </Link>
+    );
+  }
+
+  return inner;
 }
 
 type ButtonVariant = "solid" | "outline" | "ghost" | "soft" | "danger";

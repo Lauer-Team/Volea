@@ -1,31 +1,129 @@
 "use client";
 
-import { useState } from "react";
-import { courtById, occStats } from "@/lib/data";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { courtById, HOURS, occStats } from "@/lib/data";
 import type { TFunction } from "@/lib/i18n";
-import type { Court } from "@/lib/types";
+import type { Court, SlotCell, UserProfile } from "@/lib/types";
+import { addMin } from "@/lib/utils";
 import { Button, Legend, Segmented, Stat } from "@/components/ui";
+import { MonthCalendar } from "@/components/ui/MonthCalendar";
 import { Icon } from "@/components/ui/Icon";
 import { OccupancyGrid } from "@/components/OccupancyGrid";
-import { ME } from "@/lib/data";
 
 interface PlayerHomeProps {
   t: TFunction;
   lang: "de" | "en";
-  openBooking: (court: Court, slot: number) => void;
+  profile: UserProfile;
+  onBook: (court: Court, slots: number[]) => void;
   goEquip: () => void;
 }
 
-export function PlayerHome({ t, lang, openBooking, goEquip }: PlayerHomeProps) {
+function areConsecutive(slots: number[]): boolean {
+  if (slots.length <= 1) return true;
+  const sorted = [...slots].sort((a, b) => a - b);
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] !== sorted[i - 1] + 1) return false;
+  }
+  return true;
+}
+
+export function PlayerHome({ t, lang, profile, onBook, goEquip }: PlayerHomeProps) {
   const [filterFree, setFilterFree] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [calendarPicked, setCalendarPicked] = useState(false);
+  const [selectedCourtId, setSelectedCourtId] = useState<number | null>(null);
+  const [selectedSlots, setSelectedSlots] = useState<number[]>([]);
+  const [toast, setToast] = useState<string | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
   const st = occStats();
 
+  const quotaLeft = profile.monthlyQuota - profile.monthlyUsed;
+
+  useEffect(() => {
+    if (!toast) return;
+    const id = window.setTimeout(() => setToast(null), 3200);
+    return () => window.clearTimeout(id);
+  }, [toast]);
+
+  const handleDateSelect = useCallback((d: Date) => {
+    setSelectedDate(d);
+    setCalendarPicked(true);
+    setSelectedCourtId(null);
+    setSelectedSlots([]);
+    window.setTimeout(() => {
+      gridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+  }, []);
+
+  const handleCell = useCallback(
+    (court: Court, slotIndex: number, cell: SlotCell) => {
+      if (cell.state !== "free") return;
+
+      if (quotaLeft <= 0) {
+        setToast(t("quotaExceeded"));
+        return;
+      }
+
+      if (selectedCourtId !== court.id) {
+        setSelectedCourtId(court.id);
+        setSelectedSlots([slotIndex]);
+        return;
+      }
+
+      const next = selectedSlots.includes(slotIndex)
+        ? selectedSlots.filter((s) => s !== slotIndex)
+        : [...selectedSlots, slotIndex];
+
+      if (next.length === 0) {
+        setSelectedCourtId(null);
+        setSelectedSlots([]);
+        return;
+      }
+
+      if (!areConsecutive(next)) {
+        setToast(t("slotsNotConsecutive"));
+        return;
+      }
+
+      if (next.length > quotaLeft) {
+        setToast(t("quotaExceeded"));
+        return;
+      }
+
+      setSelectedSlots(next.sort((a, b) => a - b));
+    },
+    [selectedCourtId, selectedSlots, quotaLeft, t]
+  );
+
+  const handleBook = () => {
+    if (!selectedCourtId || selectedSlots.length === 0) return;
+    if (selectedSlots.length > quotaLeft) {
+      setToast(t("quotaExceeded"));
+      return;
+    }
+    onBook(courtById(selectedCourtId), selectedSlots);
+    setSelectedCourtId(null);
+    setSelectedSlots([]);
+  };
+
+  const dateLabel = selectedDate.toLocaleDateString(lang === "de" ? "de-DE" : "en-US", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+
+  const selectedCourt = selectedCourtId ? courtById(selectedCourtId) : null;
+  const timeRange =
+    selectedSlots.length > 0
+      ? `${HOURS[selectedSlots[0]]}–${addMin(HOURS[selectedSlots[selectedSlots.length - 1]])}`
+      : null;
+
   return (
-    <div className="view-in col gap-6" style={{ padding: "var(--page-pad)" }}>
+    <div className="view-in col gap-6" style={{ padding: "var(--page-pad)", paddingBottom: selectedSlots.length ? 100 : undefined }}>
       <div className="row" style={{ justifyContent: "space-between", flexWrap: "wrap", gap: 16, alignItems: "flex-end" }}>
         <div>
           <div className="eyebrow" style={{ marginBottom: 8 }}>
-            {t("greeting")}, {ME.name.split(" ")[0]}
+            {t("greeting")}, {profile.name.split(" ")[0]}
           </div>
           <h1 className="display" style={{ fontSize: "clamp(28px, 4vw, 40px)", margin: 0 }}>
             {t("availability")}
@@ -44,15 +142,47 @@ export function PlayerHome({ t, lang, openBooking, goEquip }: PlayerHomeProps) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14 }}>
         <Stat icon="court" label={t("courtsBusy")} value={`${st.booked}/${st.total}`} sub={`${st.pct}%`} />
         <Stat icon="check" label={t("openSlots")} value={st.free} tone="var(--free)" />
-        <Stat icon="clock" label={t("nextFree")} value="08:00" sub={courtById(3).name} tone="var(--free)" />
+        <Stat
+          icon="star"
+          label={t("monthlyQuota")}
+          value={`${profile.monthlyUsed}/${profile.monthlyQuota}`}
+          sub={`${quotaLeft} ${t("quotaRemaining")}`}
+          tone={quotaLeft <= 1 ? "var(--busy)" : "var(--accent)"}
+        />
         <Stat icon="bolt" label={t("peakAt")} value="20:00" sub="92%" tone="var(--busy)" />
       </div>
 
-      <div className="card" style={{ padding: "20px 20px 22px" }}>
+      <div className="col gap-3">
+        <div className="eyebrow">{calendarPicked ? t("pickDate") : t("selectDay")}</div>
+        {calendarPicked ? (
+          <div className="row gap-3" style={{ flexWrap: "wrap", alignItems: "center" }}>
+            <MonthCalendar selected={selectedDate} onSelect={handleDateSelect} compact lang={lang} />
+            <button
+              type="button"
+              onClick={() => setCalendarPicked(false)}
+              className="muted"
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                fontSize: 13,
+                fontFamily: "var(--font-ui)",
+                textDecoration: "underline",
+              }}
+            >
+              {t("selectDay")}
+            </button>
+          </div>
+        ) : (
+          <MonthCalendar selected={selectedDate} onSelect={handleDateSelect} lang={lang} />
+        )}
+      </div>
+
+      <div ref={gridRef} className="card" style={{ padding: "20px 20px 22px", scrollMarginTop: 24 }}>
         <div className="row" style={{ justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
           <div className="row gap-2">
             <Icon name="today" size={18} style={{ color: "var(--accent)" }} />
-            <span style={{ fontWeight: 600, fontSize: 15 }}>{t("today")} · Do 5. Juni</span>
+            <span style={{ fontWeight: 600, fontSize: 15 }}>{dateLabel}</span>
           </div>
           <div className="row gap-4" style={{ fontSize: 12, color: "var(--ink-3)" }}>
             <Legend c="var(--free)" label={t("free")} />
@@ -60,7 +190,14 @@ export function PlayerHome({ t, lang, openBooking, goEquip }: PlayerHomeProps) {
             <Legend c="var(--accent)" label={t("mine")} />
           </div>
         </div>
-        <OccupancyGrid t={t} lang={lang} filterFree={filterFree} onCell={(c, i) => openBooking(c, i)} />
+        <OccupancyGrid
+          t={t}
+          lang={lang}
+          filterFree={filterFree}
+          selectedCourtId={selectedCourtId}
+          selectedSlots={selectedSlots}
+          onCell={handleCell}
+        />
         <p className="muted" style={{ fontSize: 12.5, marginTop: 14, marginBottom: 0 }}>
           {t("selectSlot")} — {t("duration")} · 90 Min Blocks.
         </p>
@@ -92,6 +229,29 @@ export function PlayerHome({ t, lang, openBooking, goEquip }: PlayerHomeProps) {
           {t("rent")}
         </Button>
       </div>
+
+      {toast && (
+        <div className="toast-pop" role="status">
+          <Icon name="clock" size={16} style={{ color: "var(--accent)", flexShrink: 0 }} />
+          {toast}
+        </div>
+      )}
+
+      {selectedSlots.length > 0 && selectedCourt && (
+        <div className="book-bar">
+          <div>
+            <div className="muted" style={{ fontSize: 12 }}>
+              {selectedCourt.name} · {selectedSlots.length} {t("slotsSelected")}
+            </div>
+            <div className="display" style={{ fontSize: 20 }}>
+              {timeRange}
+            </div>
+          </div>
+          <Button size="lg" iconRight="arrowR" onClick={handleBook}>
+            {t("book")}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

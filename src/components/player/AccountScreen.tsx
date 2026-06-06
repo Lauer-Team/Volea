@@ -1,14 +1,16 @@
 "use client";
 
-import { courtById, ME, MY_BOOKINGS } from "@/lib/data";
+import { courtById } from "@/lib/data";
 import type { TFunction } from "@/lib/i18n";
-import type { AccentKey, DensityKey, FontKey, Lang, Theme } from "@/lib/types";
+import type { AccentKey, Booking, DensityKey, FontKey, Lang, Theme, UserProfile } from "@/lib/types";
 import { AppearanceSettings } from "@/components/SettingsPanel";
 import { Avatar, Badge, CourtDiagram, Stat } from "@/components/ui";
 import { Icon } from "@/components/ui/Icon";
 
 interface AccountScreenProps {
   t: TFunction;
+  profile: UserProfile;
+  bookings: Booking[];
   theme: Theme;
   accent: AccentKey;
   font: FontKey;
@@ -23,6 +25,8 @@ interface AccountScreenProps {
 
 export function AccountScreen({
   t,
+  profile,
+  bookings,
   theme,
   accent,
   font,
@@ -34,7 +38,8 @@ export function AccountScreen({
   onDensity,
   onLang,
 }: AccountScreenProps) {
-  const me = ME;
+  const me = profile;
+  const quotaLeft = me.monthlyQuota - me.monthlyUsed;
 
   return (
     <div className="view-in col gap-6" style={{ padding: "var(--page-pad)" }}>
@@ -79,12 +84,12 @@ export function AccountScreen({
           <h2 className="display" style={{ fontSize: 22, margin: 0 }}>
             {t("upcoming")}
           </h2>
-          <Badge soft>
-            {MY_BOOKINGS.length} {t("bookings")}
+          <Badge soft tone="accent">
+            {bookings.length} {t("bookings")}
           </Badge>
         </div>
         <div className="col gap-3">
-          {MY_BOOKINGS.map((b) => {
+          {bookings.map((b) => {
             const c = courtById(b.court);
             return (
               <div key={b.id} className="card" style={{ padding: 16, display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
@@ -145,8 +150,9 @@ export function AccountScreen({
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px,1fr))", gap: 14 }}>
-        <Stat icon="trophy" label="Sessions 2026" value="34" />
+        <Stat icon="star" label={t("monthlyQuota")} value={`${me.monthlyUsed}/${me.monthlyQuota}`} sub={`${quotaLeft} ${t("quotaRemaining")}`} />
         <Stat icon="clock" label="Stunden gespielt" value="51" />
+        <Stat icon="trophy" label="Sessions 2026" value="34" />
         <Stat icon="star" label="Lieblingsplatz" value="Center" />
       </div>
 

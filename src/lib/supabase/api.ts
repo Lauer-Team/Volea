@@ -1,5 +1,5 @@
 import type { Booking, Court, Equipment, SlotCell, UserProfile } from "@/lib/types";
-import { COURTS, EQUIPMENT, GRID, ME, MY_BOOKINGS } from "@/lib/data";
+import { COURTS, EQUIPMENT, GRID, ME, MY_BOOKINGS, MONTHLY_QUOTA } from "@/lib/data";
 import { getSupabase, isSupabaseConfigured } from "./client";
 
 function mapCourt(row: { id: number; name: string; type: Court["type"]; indoor: boolean; mode: Court["mode"]; price: number }): Court {
@@ -103,6 +103,9 @@ export async function fetchProfile(userId: string): Promise<UserProfile | null> 
     since: p.since_year ? `seit ${p.since_year}` : "—",
     credit: Number(p.credit),
     level: p.level ?? "—",
+    email: "",
+    monthlyQuota: MONTHLY_QUOTA,
+    monthlyUsed: 0,
   };
 }
 

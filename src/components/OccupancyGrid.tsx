@@ -10,10 +10,20 @@ interface OccupancyGridProps {
   lang: Lang;
   manage?: boolean;
   filterFree?: boolean;
+  selectedCourtId?: number | null;
+  selectedSlots?: number[];
   onCell?: (court: Court, slotIndex: number, cell: SlotCell) => void;
 }
 
-export function OccupancyGrid({ t, lang, manage, filterFree, onCell }: OccupancyGridProps) {
+export function OccupancyGrid({
+  t,
+  lang,
+  manage,
+  filterFree,
+  selectedCourtId,
+  selectedSlots = [],
+  onCell,
+}: OccupancyGridProps) {
   const cellLabel = { free: t("free"), booked: t("booked"), mine: t("mine") };
 
   return (
@@ -73,11 +83,13 @@ export function OccupancyGrid({ t, lang, manage, filterFree, onCell }: Occupancy
               {GRID[c.id].map((s, i) => {
                 const dim = filterFree && s.state !== "free";
                 const clickable = s.state === "free" || !!manage;
+                const isSelected = selectedCourtId === c.id && selectedSlots.includes(i);
+                const isMine = s.state === "mine";
                 const colors = {
                   free: {
-                    bg: "var(--free-soft)",
-                    bd: "color-mix(in oklab, var(--free) 34%, transparent)",
-                    c: "var(--free)",
+                    bg: isSelected ? "var(--soon-soft)" : "var(--free-soft)",
+                    bd: isSelected ? "var(--accent)" : "color-mix(in oklab, var(--free) 34%, transparent)",
+                    c: isSelected ? "var(--accent)" : "var(--free)",
                   },
                   booked: {
                     bg: "var(--busy-soft)",
@@ -85,8 +97,8 @@ export function OccupancyGrid({ t, lang, manage, filterFree, onCell }: Occupancy
                     c: "var(--busy)",
                   },
                   mine: {
-                    bg: "var(--soon-soft)",
-                    bd: "color-mix(in oklab, var(--accent) 50%, transparent)",
+                    bg: "color-mix(in oklab, var(--accent) 28%, var(--surface-2))",
+                    bd: "var(--accent)",
                     c: "var(--accent)",
                   },
                 }[s.state];
@@ -97,42 +109,56 @@ export function OccupancyGrid({ t, lang, manage, filterFree, onCell }: Occupancy
                     disabled={!clickable}
                     onClick={() => clickable && onCell?.(c, i, s)}
                     title={`${c.name} · ${HOURS[i]} · ${cellLabel[s.state]}`}
+                    className={isMine ? "slot-mine" : undefined}
                     style={{
-                      height: 34,
+                      height: isMine ? 38 : 34,
                       borderRadius: 8,
                       cursor: clickable ? "pointer" : "default",
                       background: colors.bg,
-                      border: `1px solid ${colors.bd}`,
+                      border: `${isSelected || isMine ? 2 : 1}px solid ${colors.bd}`,
                       opacity: dim ? 0.28 : 1,
                       display: "grid",
                       placeItems: "center",
                       transition: "transform .1s, box-shadow .2s, opacity .2s",
                       position: "relative",
+                      boxShadow: isMine ? "0 0 0 1px color-mix(in oklab, var(--accent) 25%, transparent), var(--shadow-soft)" : isSelected ? "var(--shadow-soft)" : "none",
+                      transform: isMine ? "scale(1.02)" : undefined,
+                      zIndex: isMine || isSelected ? 1 : 0,
                     }}
                     onMouseEnter={(e) => {
                       if (clickable) {
-                        e.currentTarget.style.transform = "translateY(-1px)";
+                        e.currentTarget.style.transform = isMine ? "scale(1.04) translateY(-1px)" : "translateY(-1px)";
                         e.currentTarget.style.boxShadow = "var(--shadow-soft)";
                       }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = "none";
-                      e.currentTarget.style.boxShadow = "none";
+                      e.currentTarget.style.transform = isMine ? "scale(1.02)" : "none";
+                      e.currentTarget.style.boxShadow = isMine
+                        ? "0 0 0 1px color-mix(in oklab, var(--accent) 25%, transparent), var(--shadow-soft)"
+                        : isSelected
+                          ? "var(--shadow-soft)"
+                          : "none";
                     }}
                   >
                     {s.state === "free" ? (
-                      <Icon name="plus" size={14} style={{ color: colors.c, opacity: 0.8 }} />
+                      isSelected ? (
+                        <Icon name="check" size={14} style={{ color: colors.c }} />
+                      ) : (
+                        <Icon name="plus" size={14} style={{ color: colors.c, opacity: 0.8 }} />
+                      )
                     ) : (
                       <span
                         style={{
-                          fontSize: 10.5,
-                          fontWeight: 600,
+                          fontSize: isMine ? 11.5 : 10.5,
+                          fontWeight: 700,
                           color: colors.c,
                           padding: "0 4px",
                           whiteSpace: "nowrap",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           maxWidth: "100%",
+                          letterSpacing: isMine ? "0.04em" : undefined,
+                          textTransform: isMine ? "uppercase" : undefined,
                         }}
                       >
                         {manage ? s.who : s.state === "mine" ? t("mine") : ""}

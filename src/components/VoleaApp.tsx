@@ -5,17 +5,20 @@ import { AuthScreen } from "@/components/auth/AuthScreen";
 import { AdminBookings, AdminCourts, AdminOverview } from "@/components/admin/AdminScreens";
 import { BookingSheet } from "@/components/booking/BookingSheet";
 import { AccountScreen } from "@/components/player/AccountScreen";
+import { BookingsScreen } from "@/components/player/BookingsScreen";
 import { EquipmentScreen } from "@/components/player/EquipmentScreen";
 import { PlayerHome } from "@/components/player/PlayerHome";
 import { Avatar, Logo, Segmented } from "@/components/ui";
 import { Icon } from "@/components/ui/Icon";
 import type { IconName } from "@/components/ui/Icon";
-import { ME } from "@/lib/data";
+import { ADMIN_EMAIL, MY_BOOKINGS, courtById, profileFromAuth } from "@/lib/data";
 import { makeT } from "@/lib/i18n";
 import type {
   AccentKey,
   AdminView,
   AppView,
+  AuthUser,
+  Booking,
   BookingSheetState,
   Cart,
   Court,
@@ -25,8 +28,10 @@ import type {
   PlayerView,
   Role,
   Theme,
+  UserProfile,
 } from "@/lib/types";
 import { ACCENTS, DENSITY, FONTS } from "@/lib/utils";
+import { signOut } from "@/lib/supabase/api";
 
 export function VoleaApp() {
   const [theme, setTheme] = useState<Theme>("dark");
@@ -36,12 +41,22 @@ export function VoleaApp() {
   const [lang, setLang] = useState<Lang>("de");
 
   const [authed, setAuthed] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [role, setRole] = useState<Role>("player");
   const [view, setView] = useState<AppView>("home");
   const [cart, setCart] = useState<Cart>({});
-  const [sheet, setSheet] = useState<BookingSheetState>({ open: false, court: null, slot: 0 });
+  const [bookings, setBookings] = useState<Booking[]>(MY_BOOKINGS);
+  const [sheet, setSheet] = useState<BookingSheetState>({ open: false, court: null, slots: [] });
 
   const t = useMemo(() => makeT(lang), [lang]);
+
+  const profile: UserProfile = useMemo(() => {
+    if (!user) return profileFromAuth(ADMIN_EMAIL);
+    const base = profileFromAuth(user.email, user.name);
+    return { ...base, monthlyUsed: bookings.length };
+  }, [user, bookings.length]);
+
+  const isAdmin = user?.email.toLowerCase() === ADMIN_EMAIL;
 
   const rootStyle = useMemo(() => {
     const acc = ACCENTS[accent];
@@ -69,25 +84,57 @@ export function VoleaApp() {
     });
   }, []);
 
-  const openBooking = useCallback((court: Court, slot: number) => {
-    setSheet({ open: true, court, slot });
+  const openBooking = useCallback((court: Court, slots: number[]) => {
+    setSheet({ open: true, court, slots });
   }, []);
 
   const switchRole = useCallback((r: Role) => {
+    if (r === "admin" && !isAdmin) return;
     setRole(r);
     setView(r === "player" ? "home" : "overview");
+  }, [isAdmin]);
+
+  const handleAuth = useCallback((authUser: AuthUser) => {
+    setUser(authUser);
+    setAuthed(true);
+    setRole("player");
+    setView("home");
   }, []);
+
+  const handleLogout = useCallback(async () => {
+    await signOut();
+    setAuthed(false);
+    setUser(null);
+    setRole("player");
+    setView("home");
+  }, []);
+
+  const cancelBooking = useCallback((id: string) => {
+    setBookings((prev) => prev.filter((b) => b.id !== id));
+  }, []);
+
+  const editBooking = useCallback(
+    (id: string) => {
+      const b = bookings.find((x) => x.id === id);
+      if (b) {
+        openBooking(courtById(b.court), [b.slot]);
+        setView("home");
+      }
+    },
+    [bookings, openBooking]
+  );
 
   if (!authed) {
     return (
       <div data-theme={theme} style={rootStyle}>
-        <AuthScreen t={t} onAuth={() => setAuthed(true)} />
+        <AuthScreen t={t} onAuth={handleAuth} />
       </div>
     );
   }
 
   const playerNav: { id: PlayerView; label: string; icon: IconName }[] = [
     { id: "home", label: t("courts"), icon: "today" },
+    { id: "bookings", label: t("myBookings"), icon: "clock" },
     { id: "equipment", label: t("equipment"), icon: "gear" },
     { id: "account", label: t("account"), icon: "user" },
   ];
@@ -103,7 +150,17 @@ export function VoleaApp() {
   let screen: React.ReactNode = null;
   if (role === "player") {
     if (view === "home")
-      screen = <PlayerHome t={t} lang={lang} openBooking={openBooking} goEquip={() => setView("equipment")} />;
+      screen = (
+        <PlayerHome
+          t={t}
+          lang={lang}
+          profile={profile}
+          onBook={openBooking}
+          goEquip={() => setView("equipment")}
+        />
+      );
+    else if (view === "bookings")
+      screen = <BookingsScreen t={t} bookings={bookings} onCancel={cancelBooking} onEdit={editBooking} />;
     else if (view === "equipment")
       screen = (
         <EquipmentScreen t={t} lang={lang} cart={cart} addGear={addGear} removeGear={removeGear} goCheckout={() => setView("home")} />
@@ -112,6 +169,8 @@ export function VoleaApp() {
       screen = (
         <AccountScreen
           t={t}
+          profile={profile}
+          bookings={bookings}
           theme={theme}
           accent={accent}
           font={font}
@@ -130,24 +189,26 @@ export function VoleaApp() {
     else if (view === "courts") screen = <AdminCourts t={t} lang={lang} />;
   }
 
+  const roleToggle = isAdmin ? (
+    <Segmented
+      value={role}
+      onChange={(v) => switchRole(v as Role)}
+      size="sm"
+      options={[
+        { value: "player", label: t("player"), icon: "user" },
+        { value: "admin", label: t("admin"), icon: "shield" },
+      ]}
+    />
+  ) : null;
+
   return (
     <div className="app-bg" data-theme={theme} style={rootStyle}>
       <div className="shell">
         <aside className="sidebar">
           <div style={{ padding: "22px 20px 18px" }}>
-            <Logo size={21} />
+            <Logo size={21} href="/" />
           </div>
-          <div style={{ padding: "0 16px 16px" }}>
-            <Segmented
-              value={role}
-              onChange={(v) => switchRole(v as Role)}
-              size="sm"
-              options={[
-                { value: "player", label: t("player"), icon: "user" },
-                { value: "admin", label: t("admin"), icon: "shield" },
-              ]}
-            />
-          </div>
+          {roleToggle && <div style={{ padding: "0 16px 16px" }}>{roleToggle}</div>}
           <nav className="col gap-1" style={{ padding: "6px 12px", flex: 1 }}>
             {nav.map((n) => (
               <NavItem key={n.id} n={n} active={view === n.id} onClick={() => setView(n.id)} />
@@ -160,24 +221,46 @@ export function VoleaApp() {
                   {t("credit")}
                 </div>
                 <div className="display" style={{ fontSize: 24, color: "var(--accent)" }}>
-                  {ME.credit} €
+                  {profile.credit} €
+                </div>
+                <div className="muted" style={{ fontSize: 11, marginTop: 8 }}>
+                  {t("monthlyQuota")}: {profile.monthlyUsed}/{profile.monthlyQuota}
                 </div>
               </div>
             </div>
           )}
-          <div className="row" style={{ gap: 10, padding: "14px 18px", borderTop: "1px solid var(--line)" }}>
-            <Avatar initials={ME.initials} size={36} />
+          <div
+            role="button"
+            tabIndex={0}
+            className="row"
+            onClick={() => setView("account")}
+            onKeyDown={(e) => e.key === "Enter" && setView("account")}
+            style={{
+              gap: 10,
+              padding: "14px 18px",
+              borderTop: "1px solid var(--line)",
+              cursor: "pointer",
+              width: "100%",
+              transition: "background .15s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-2)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            <Avatar initials={profile.initials} size={36} />
             <div className="grow" style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {ME.name}
+              <div style={{ fontWeight: 600, fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "var(--ink)" }}>
+                {profile.name}
               </div>
               <div className="muted" style={{ fontSize: 11.5 }}>
-                {role === "admin" ? "Club-Manager" : ME.member}
+                {role === "admin" ? "Club-Manager" : profile.member}
               </div>
             </div>
             <button
               type="button"
-              onClick={() => setAuthed(false)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleLogout();
+              }}
               title={t("logout")}
               style={{
                 width: 36,
@@ -189,6 +272,7 @@ export function VoleaApp() {
                 cursor: "pointer",
                 display: "grid",
                 placeItems: "center",
+                flexShrink: 0,
               }}
             >
               <Icon name="logout" size={16} />
@@ -198,17 +282,9 @@ export function VoleaApp() {
 
         <div className="content">
           <header className="topbar">
-            <Logo size={18} />
+            <Logo size={18} href="/" />
             <div className="grow" />
-            <Segmented
-              value={role}
-              onChange={(v) => switchRole(v as Role)}
-              size="sm"
-              options={[
-                { value: "player", label: t("player") },
-                { value: "admin", label: t("admin") },
-              ]}
-            />
+            {roleToggle}
           </header>
 
           <main className="main" key={role + view}>
@@ -237,13 +313,13 @@ export function VoleaApp() {
         lang={lang}
         open={sheet.open}
         court={sheet.court}
-        slotIndex={sheet.slot}
+        slotIndices={sheet.slots}
         cart={cart}
+        profile={profile}
         addGear={addGear}
         removeGear={removeGear}
-        onClose={() => setSheet({ ...sheet, open: false })}
+        onClose={() => setSheet({ open: false, court: null, slots: [] })}
       />
-
     </div>
   );
 }

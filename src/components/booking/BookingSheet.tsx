@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { EQUIPMENT, equipmentById, HOURS, ME, TYPE_LABEL } from "@/lib/data";
+import { EQUIPMENT, equipmentById, HOURS } from "@/lib/data";
 import type { TFunction } from "@/lib/i18n";
-import type { Cart, Court, Lang } from "@/lib/types";
+import type { Cart, Court, Lang, UserProfile } from "@/lib/types";
 import { addMin, iconBtnStyle } from "@/lib/utils";
 import { Badge, Button, CourtDiagram, Stepper } from "@/components/ui";
 import { Icon } from "@/components/ui/Icon";
@@ -14,8 +14,9 @@ interface BookingSheetProps {
   lang: Lang;
   open: boolean;
   court: Court | null;
-  slotIndex: number;
+  slotIndices: number[];
   cart: Cart;
+  profile: UserProfile;
   addGear: (id: string) => void;
   removeGear: (id: string) => void;
   onClose: () => void;
@@ -28,10 +29,14 @@ const gearIcon: Record<string, IconName> = {
   extra: "star",
 };
 
+const STEP_KEYS = ["stepCourt", "stepEquipment", "stepPayment"] as const;
+
 function SummaryBlock({
   t,
   court,
-  time,
+  timeStart,
+  timeEnd,
+  slotCount,
   players,
   gearLines,
   total,
@@ -39,7 +44,9 @@ function SummaryBlock({
 }: {
   t: TFunction;
   court: Court;
-  time: string;
+  timeStart: string;
+  timeEnd: string;
+  slotCount: number;
   players: number;
   gearLines: [string, number][];
   total: number;
@@ -47,9 +54,10 @@ function SummaryBlock({
 }) {
   const rows: [string, string | number][] = [
     [t("court"), court.name],
-    [t("time"), `${time}–${addMin(time)}`],
+    [t("time"), `${timeStart}–${timeEnd}`],
     [t("players"), players],
   ];
+  if (slotCount > 1) rows.push([t("selectedSlots"), slotCount]);
   return (
     <div className="col gap-2" style={{ fontSize: 14 }}>
       {!flat && (
@@ -65,7 +73,7 @@ function SummaryBlock({
       ))}
       <div className="row" style={{ justifyContent: "space-between" }}>
         <span className="muted">{t("court")}</span>
-        <span>{court.price} €</span>
+        <span>{court.price * slotCount} €</span>
       </div>
       {gearLines.map(([id, q]) => {
         const e = equipmentById(id)!;
@@ -91,11 +99,11 @@ function SummaryBlock({
 
 export function BookingSheet({
   t,
-  lang,
   open,
   court,
-  slotIndex,
+  slotIndices,
   cart,
+  profile,
   addGear,
   removeGear,
   onClose,
@@ -111,14 +119,14 @@ export function BookingSheet({
     }
   }, [open, court]);
 
-  if (!open || !court) return null;
+  if (!open || !court || slotIndices.length === 0) return null;
 
-  const time = HOURS[slotIndex];
-  const gearTotal = Object.entries(cart).reduce(
-    (s, [id, q]) => s + (equipmentById(id)?.price || 0) * q,
-    0
-  );
-  const total = court.price + gearTotal;
+  const sorted = [...slotIndices].sort((a, b) => a - b);
+  const timeStart = HOURS[sorted[0]];
+  const timeEnd = addMin(HOURS[sorted[sorted.length - 1]]);
+  const slotCount = sorted.length;
+  const gearTotal = Object.entries(cart).reduce((s, [id, q]) => s + (equipmentById(id)?.price || 0) * q, 0);
+  const total = court.price * slotCount + gearTotal;
   const gearLines = Object.entries(cart).filter(([, q]) => q > 0) as [string, number][];
   const steps = [t("newBooking"), t("equipment"), t("pay"), t("done")];
   const playerOptions = court.mode === "Einzel" ? [1, 2] : [1, 2, 3, 4];
@@ -165,18 +173,26 @@ export function BookingSheet({
         </div>
 
         {step < 3 && (
-          <div className="row gap-2" style={{ padding: "14px 22px 0" }}>
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                style={{
-                  flex: 1,
-                  height: 4,
-                  borderRadius: 999,
-                  background: i <= step ? "var(--accent)" : "var(--surface-3)",
-                  transition: "background .3s",
-                }}
-              />
+          <div
+            className="row"
+            style={{
+              padding: "14px 22px 0",
+              gap: 8,
+              fontSize: 12,
+              fontWeight: 600,
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            {STEP_KEYS.map((key, i) => (
+              <span key={key} className="row gap-2" style={{ alignItems: "center" }}>
+                {i > 0 && (
+                  <span className="muted" style={{ opacity: 0.5 }}>
+                    |
+                  </span>
+                )}
+                <span style={{ color: i <= step ? "var(--accent)" : "var(--ink-faint)" }}>{t(key)}</span>
+              </span>
             ))}
           </div>
         )}
@@ -190,12 +206,13 @@ export function BookingSheet({
               <div className="grow">
                 <div className="row gap-2">
                   <span style={{ fontWeight: 600, fontSize: 17 }}>{court.name}</span>
-                  <Badge soft>{TYPE_LABEL[court.type][lang]}</Badge>
+                  <Badge soft>{court.mode}</Badge>
+                  {slotCount > 1 && <Badge tone="accent" soft>{slotCount}× 90 Min</Badge>}
                 </div>
                 <div className="row gap-3 muted" style={{ fontSize: 13, marginTop: 6 }}>
                   <span className="row gap-1">
                     <Icon name="clock" size={14} />
-                    {time}–{addMin(time)}
+                    {timeStart}–{timeEnd}
                   </span>
                   <span className="row gap-1">
                     <Icon name="court" size={14} />
@@ -317,7 +334,7 @@ export function BookingSheet({
                   {t("payWith")}
                 </div>
                 {[
-                  { id: "credit", label: t("clubCredit"), sub: `${ME.credit} € ${t("availableNow")}`, icon: "euro" as IconName },
+                  { id: "credit", label: t("clubCredit"), sub: `${profile.credit} € ${t("availableNow")}`, icon: "euro" as IconName },
                   { id: "card", label: t("card"), sub: "•••• 4729 · Visa", icon: "card" as IconName },
                 ].map((m) => (
                   <button
@@ -360,7 +377,16 @@ export function BookingSheet({
                   </button>
                 ))}
               </div>
-              <SummaryBlock t={t} court={court} time={time} players={players} gearLines={gearLines} total={total} />
+              <SummaryBlock
+                t={t}
+                court={court}
+                timeStart={timeStart}
+                timeEnd={timeEnd}
+                slotCount={slotCount}
+                players={players}
+                gearLines={gearLines}
+                total={total}
+              />
             </div>
           )}
 
@@ -385,11 +411,21 @@ export function BookingSheet({
                   {t("confirmed")}
                 </h2>
                 <p className="muted" style={{ margin: 0, fontSize: 14.5 }}>
-                  {court.name} · {t("today")} · {time}–{addMin(time)}
+                  {court.name} · {t("today")} · {timeStart}–{timeEnd}
                 </p>
               </div>
               <div className="card" style={{ padding: 18, width: "100%", background: "var(--surface-2)" }}>
-                <SummaryBlock t={t} court={court} time={time} players={players} gearLines={gearLines} total={total} flat />
+                <SummaryBlock
+                  t={t}
+                  court={court}
+                  timeStart={timeStart}
+                  timeEnd={timeEnd}
+                  slotCount={slotCount}
+                  players={players}
+                  gearLines={gearLines}
+                  total={total}
+                  flat
+                />
               </div>
               <Button full size="lg" onClick={onClose} icon="check">
                 {t("viewBooking")}
@@ -409,7 +445,7 @@ export function BookingSheet({
               </div>
             </div>
             {step === 0 && (
-              <Button size="lg" iconRight="arrowR" onClick={() => setStep(2)}>
+              <Button size="lg" iconRight="arrowR" onClick={() => setStep(1)}>
                 {t("continue")}
               </Button>
             )}

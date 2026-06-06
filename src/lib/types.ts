@@ -68,6 +68,20 @@ export interface UserProfile {
   since: string;
   credit: number;
   level: string;
+  email: string;
+  monthlyQuota: number;
+  monthlyUsed: number;
+}
+
+export interface AuthUser {
+  email: string;
+  name: string;
+  initials: string;
+}
+
+export interface SlotSelection {
+  courtId: number;
+  slots: number[];
 }
 
 export type Cart = Record<string, number>;
@@ -75,9 +89,9 @@ export type Cart = Record<string, number>;
 export interface BookingSheetState {
   open: boolean;
   court: Court | null;
-  slot: number;
+  slots: number[];
 }
 
-export type PlayerView = "home" | "equipment" | "account";
+export type PlayerView = "home" | "equipment" | "account" | "bookings";
 export type AdminView = "overview" | "bookings" | "courts";
 export type AppView = PlayerView | AdminView;

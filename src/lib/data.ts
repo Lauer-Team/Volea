@@ -174,14 +174,47 @@ export const CAT_LABEL = {
   extra: { de: "Extras", en: "Extras" },
 };
 
+export const ADMIN_EMAIL = "jjlauer@gmx.net";
+export const MONTHLY_QUOTA = 8;
+
 export const ME: UserProfile = {
-  name: "Nora Brandt",
-  initials: "NB",
+  name: "Jeremiah Lauer",
+  initials: "JL",
   member: "Premium-Mitglied",
   since: "seit 2024",
   credit: 40,
   level: "Mittel · 3.5",
+  email: ADMIN_EMAIL,
+  monthlyQuota: MONTHLY_QUOTA,
+  monthlyUsed: 3,
 };
+
+export function initialsFromName(name: string): string {
+  return name
+    .split(" ")
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+export function profileFromAuth(email: string, name?: string): UserProfile {
+  const isAdmin = email.toLowerCase() === ADMIN_EMAIL;
+  const displayName =
+    name ||
+    (isAdmin ? "Jeremiah Lauer" : email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()));
+  return {
+    name: displayName,
+    initials: initialsFromName(displayName),
+    member: isAdmin ? "Premium-Mitglied" : "Mitglied",
+    since: "seit 2024",
+    credit: isAdmin ? 40 : 20,
+    level: "Mittel · 3.5",
+    email,
+    monthlyQuota: MONTHLY_QUOTA,
+    monthlyUsed: MY_BOOKINGS.length,
+  };
+}
 
 export const MY_BOOKINGS: Booking[] = [
   {

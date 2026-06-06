@@ -16,7 +16,7 @@ export function LandingPage() {
           margin: "0 auto",
         }}
       >
-        <Logo size={20} />
+        <Logo size={20} href="/" />
         <Link href="/app/" style={{ textDecoration: "none" }}>
           <Button variant="outline" size="sm" iconRight="arrowR">
             Anmelden

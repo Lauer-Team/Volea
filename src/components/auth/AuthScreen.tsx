@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Button, Logo } from "@/components/ui";
 import { Icon } from "@/components/ui/Icon";
 import type { TFunction } from "@/lib/i18n";
+import type { AuthUser } from "@/lib/types";
+import { initialsFromName, profileFromAuth } from "@/lib/data";
 import { signInWithPassword, signUp } from "@/lib/supabase/api";
 
 function Field({
@@ -47,7 +49,7 @@ function Field({
 
 interface AuthScreenProps {
   t: TFunction;
-  onAuth: () => void;
+  onAuth: (user: AuthUser) => void;
 }
 
 export function AuthScreen({ t, onAuth }: AuthScreenProps) {
@@ -70,7 +72,12 @@ export function AuthScreen({ t, onAuth }: AuthScreenProps) {
         setError("error" in result ? result.error : "Anmeldung fehlgeschlagen");
         return;
       }
-      onAuth();
+      const displayName = name || profileFromAuth(email).name;
+      onAuth({
+        email: email.trim().toLowerCase(),
+        name: displayName,
+        initials: initialsFromName(displayName),
+      });
     } finally {
       setLoading(false);
     }
@@ -110,7 +117,7 @@ export function AuthScreen({ t, onAuth }: AuthScreenProps) {
           }}
         />
         <div style={{ position: "relative" }}>
-          <Logo size={24} />
+          <Logo size={24} href="/" />
         </div>
         <div style={{ position: "relative", maxWidth: 440 }}>
           <div className="eyebrow" style={{ marginBottom: 18 }}>
@@ -167,10 +174,10 @@ export function AuthScreen({ t, onAuth }: AuthScreenProps) {
             <div style={{ height: 1, background: "var(--line)", flex: 1 }} />
           </div>
           <div className="row gap-3">
-            <Button variant="soft" full onClick={onAuth}>
+            <Button variant="soft" full onClick={() => onAuth({ email: "demo@volea.club", name: "Demo User", initials: "DU" })}>
               Apple
             </Button>
-            <Button variant="soft" full onClick={onAuth}>
+            <Button variant="soft" full onClick={() => onAuth({ email: "demo@volea.club", name: "Demo User", initials: "DU" })}>
               Google
             </Button>
           </div>
