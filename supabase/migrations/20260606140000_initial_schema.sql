@@ -67,6 +67,7 @@ create policy "equipment_read" on public.equipment for select using (true);
 create policy "occupancy_read" on public.slot_occupancy for select using (true);
 
 create policy "profiles_read_own" on public.profiles for select using (auth.uid() = id);
+create policy "profiles_insert_own" on public.profiles for insert with check (auth.uid() = id);
 create policy "profiles_update_own" on public.profiles for update using (auth.uid() = id);
 
 create policy "bookings_read_own" on public.bookings for select using (auth.uid() = user_id);
