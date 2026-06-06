@@ -1,9 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Static export for GitHub Pages (enable when deploying)
-  // output: "export",
-  // images: { unoptimized: true },
+  output: "export",
+  images: { unoptimized: true },
+  trailingSlash: true,
+  outputFileTracingRoot: import.meta.dirname,
 };
 
 export default nextConfig;

@@ -1,5 +1,5 @@
-import { VoleaApp } from "@/components/VoleaApp";
+import { LandingPage } from "@/components/landing/LandingPage";
 
 export default function Home() {
-  return <VoleaApp />;
+  return <LandingPage />;
 }

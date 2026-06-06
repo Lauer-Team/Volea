@@ -7,7 +7,6 @@ import { BookingSheet } from "@/components/booking/BookingSheet";
 import { AccountScreen } from "@/components/player/AccountScreen";
 import { EquipmentScreen } from "@/components/player/EquipmentScreen";
 import { PlayerHome } from "@/components/player/PlayerHome";
-import { SettingsPanel } from "@/components/SettingsPanel";
 import { Avatar, Logo, Segmented } from "@/components/ui";
 import { Icon } from "@/components/ui/Icon";
 import type { IconName } from "@/components/ui/Icon";
@@ -83,19 +82,6 @@ export function VoleaApp() {
     return (
       <div data-theme={theme} style={rootStyle}>
         <AuthScreen t={t} onAuth={() => setAuthed(true)} />
-        <SettingsPanel
-          theme={theme}
-          accent={accent}
-          font={font}
-          density={density}
-          lang={lang}
-          onTheme={setTheme}
-          onAccent={setAccent}
-          onFont={setFont}
-          onDensity={setDensity}
-          onLang={setLang}
-          t={t}
-        />
       </div>
     );
   }
@@ -122,7 +108,22 @@ export function VoleaApp() {
       screen = (
         <EquipmentScreen t={t} lang={lang} cart={cart} addGear={addGear} removeGear={removeGear} goCheckout={() => setView("home")} />
       );
-    else if (view === "account") screen = <AccountScreen t={t} />;
+    else if (view === "account")
+      screen = (
+        <AccountScreen
+          t={t}
+          theme={theme}
+          accent={accent}
+          font={font}
+          density={density}
+          lang={lang}
+          onTheme={setTheme}
+          onAccent={setAccent}
+          onFont={setFont}
+          onDensity={setDensity}
+          onLang={setLang}
+        />
+      );
   } else {
     if (view === "overview") screen = <AdminOverview t={t} />;
     else if (view === "bookings") screen = <AdminBookings t={t} lang={lang} />;
@@ -243,19 +244,6 @@ export function VoleaApp() {
         onClose={() => setSheet({ ...sheet, open: false })}
       />
 
-      <SettingsPanel
-        theme={theme}
-        accent={accent}
-        font={font}
-        density={density}
-        lang={lang}
-        onTheme={setTheme}
-        onAccent={setAccent}
-        onFont={setFont}
-        onDensity={setDensity}
-        onLang={setLang}
-        t={t}
-      />
     </div>
   );
 }

@@ -4,14 +4,29 @@ import { useState } from "react";
 import { Button, Logo } from "@/components/ui";
 import { Icon } from "@/components/ui/Icon";
 import type { TFunction } from "@/lib/i18n";
+import { signInWithPassword, signUp } from "@/lib/supabase/api";
 
-function Field({ label, placeholder, type = "text" }: { label: string; placeholder: string; type?: string }) {
+function Field({
+  label,
+  placeholder,
+  type = "text",
+  value,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  type?: string;
+  value?: string;
+  onChange?: (v: string) => void;
+}) {
   return (
     <label className="col gap-2">
       <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", letterSpacing: "0.02em" }}>{label}</span>
       <input
         type={type}
         placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
         style={{
           background: "var(--surface-2)",
           border: "1px solid var(--line-strong)",
@@ -37,6 +52,29 @@ interface AuthScreenProps {
 
 export function AuthScreen({ t, onAuth }: AuthScreenProps) {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleAuth() {
+    setError(null);
+    setLoading(true);
+    try {
+      const result =
+        mode === "signin"
+          ? await signInWithPassword(email, password)
+          : await signUp(email, password, name || "Gast");
+      if (!result.ok) {
+        setError("error" in result ? result.error : "Anmeldung fehlgeschlagen");
+        return;
+      }
+      onAuth();
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div
@@ -110,13 +148,18 @@ export function AuthScreen({ t, onAuth }: AuthScreenProps) {
             {mode === "signin" ? t("welcomeBack") : t("joinClub")}
           </p>
           <div className="col gap-3">
-            {mode === "signup" && <Field label={t("nameLabel")} placeholder="Nora Brandt" />}
-            <Field label={t("emailLabel")} placeholder="nora@volea.club" type="email" />
-            <Field label={t("pwLabel")} placeholder="••••••••" type="password" />
+            {mode === "signup" && (
+              <Field label={t("nameLabel")} placeholder="Nora Brandt" value={name} onChange={setName} />
+            )}
+            <Field label={t("emailLabel")} placeholder="nora@volea.club" type="email" value={email} onChange={setEmail} />
+            <Field label={t("pwLabel")} placeholder="••••••••" type="password" value={password} onChange={setPassword} />
           </div>
+          {error && (
+            <p style={{ color: "var(--busy)", fontSize: 13, margin: "12px 0 0" }}>{error}</p>
+          )}
           <div style={{ height: 18 }} />
-          <Button size="lg" full onClick={onAuth} iconRight="arrowR">
-            {mode === "signin" ? t("signin") : t("signup")}
+          <Button size="lg" full onClick={handleAuth} iconRight="arrowR" disabled={loading}>
+            {loading ? t("processing") : mode === "signin" ? t("signin") : t("signup")}
           </Button>
           <div className="row gap-3" style={{ margin: "22px 0", color: "var(--ink-faint)", fontSize: 12 }}>
             <div style={{ height: 1, background: "var(--line)", flex: 1 }} />

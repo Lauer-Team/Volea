@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import type { AccentKey, DensityKey, FontKey, Lang, Theme } from "@/lib/types";
 import { ACCENTS } from "@/lib/utils";
 import type { TFunction } from "@/lib/i18n";
 
-interface SettingsPanelProps {
+export interface AppearanceSettingsProps {
   theme: Theme;
   accent: AccentKey;
   font: FontKey;
@@ -19,7 +18,8 @@ interface SettingsPanelProps {
   t: TFunction;
 }
 
-export function SettingsPanel({
+/** Inline appearance settings — shown inside Account screen */
+export function AppearanceSettings({
   theme,
   accent,
   font,
@@ -31,63 +31,12 @@ export function SettingsPanel({
   onDensity,
   onLang,
   t,
-}: SettingsPanelProps) {
-  const [open, setOpen] = useState(false);
-
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        title={t("settings")}
-        style={{
-          position: "fixed",
-          bottom: 20,
-          left: 20,
-          zIndex: 50,
-          width: 44,
-          height: 44,
-          borderRadius: "50%",
-          border: "1px solid var(--line-strong)",
-          background: "var(--surface)",
-          color: "var(--accent)",
-          cursor: "pointer",
-          boxShadow: "var(--shadow-soft)",
-          display: "grid",
-          placeItems: "center",
-          fontSize: 18,
-        }}
-      >
-        ⚙
-      </button>
-    );
-  }
-
+}: AppearanceSettingsProps) {
   return (
-    <div
-      style={{
-        position: "fixed",
-        bottom: 20,
-        left: 20,
-        zIndex: 50,
-        width: 280,
-        background: "var(--surface)",
-        border: "1px solid var(--line-strong)",
-        borderRadius: "var(--radius)",
-        boxShadow: "var(--shadow)",
-        padding: 16,
-      }}
-    >
-      <div className="row" style={{ justifyContent: "space-between", marginBottom: 14 }}>
-        <span className="eyebrow">{t("settings")}</span>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-3)", fontSize: 18 }}
-        >
-          ×
-        </button>
-      </div>
+    <div className="card" style={{ padding: 22 }}>
+      <h2 className="display" style={{ fontSize: 22, margin: "0 0 18px" }}>
+        {t("settings")}
+      </h2>
 
       <SettingGroup label={t("theme")}>
         <RadioRow
@@ -145,7 +94,7 @@ export function SettingsPanel({
         />
       </SettingGroup>
 
-      <SettingGroup label={t("language")}>
+      <SettingGroup label={t("language")} last>
         <RadioRow
           value={lang}
           options={[
@@ -159,10 +108,10 @@ export function SettingsPanel({
   );
 }
 
-function SettingGroup({ label, children }: { label: string; children: React.ReactNode }) {
+function SettingGroup({ label, children, last }: { label: string; children: React.ReactNode; last?: boolean }) {
   return (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: "var(--ink-3)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+    <div style={{ marginBottom: last ? 0 : 14 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: "var(--ink-2)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.1em" }}>
         {label}
       </div>
       {children}

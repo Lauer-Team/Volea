@@ -24,6 +24,19 @@
   --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.1), 0 10px 30px -20px rgba(0, 0, 0, 0.35);
 
   --page-pad: clamp(18px, 3.4vw, 30px);
+
+  /* Default: dark theme so text is always light on first paint */
+  --bg: #161410;
+  --surface: #211d17;
+  --surface-2: #2a251d;
+  --surface-3: #332d23;
+  --line: rgba(236, 230, 218, 0.1);
+  --line-strong: rgba(236, 230, 218, 0.18);
+  --ink: #ece6da;
+  --ink-2: #c3bcab;
+  --ink-3: #a39b8c;
+  --ink-faint: #8a8375;
+  color-scheme: dark;
 }
 
 [data-theme="dark"] {
@@ -35,8 +48,8 @@
   --line-strong: rgba(236, 230, 218, 0.18);
   --ink: #ece6da;
   --ink-2: #c3bcab;
-  --ink-3: #8f897b;
-  --ink-faint: #6a6457;
+  --ink-3: #a39b8c;
+  --ink-faint: #8a8375;
   color-scheme: dark;
 }
 
@@ -82,6 +95,7 @@ body {
   font-weight: 400;
   letter-spacing: 0.01em;
   line-height: 1.05;
+  color: var(--ink);
 }
 
 .eyebrow {

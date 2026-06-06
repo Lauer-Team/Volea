@@ -2,14 +2,38 @@
 
 import { courtById, ME, MY_BOOKINGS } from "@/lib/data";
 import type { TFunction } from "@/lib/i18n";
+import type { AccentKey, DensityKey, FontKey, Lang, Theme } from "@/lib/types";
+import { AppearanceSettings } from "@/components/SettingsPanel";
 import { Avatar, Badge, CourtDiagram, Stat } from "@/components/ui";
 import { Icon } from "@/components/ui/Icon";
 
 interface AccountScreenProps {
   t: TFunction;
+  theme: Theme;
+  accent: AccentKey;
+  font: FontKey;
+  density: DensityKey;
+  lang: Lang;
+  onTheme: (v: Theme) => void;
+  onAccent: (v: AccentKey) => void;
+  onFont: (v: FontKey) => void;
+  onDensity: (v: DensityKey) => void;
+  onLang: (v: Lang) => void;
 }
 
-export function AccountScreen({ t }: AccountScreenProps) {
+export function AccountScreen({
+  t,
+  theme,
+  accent,
+  font,
+  density,
+  lang,
+  onTheme,
+  onAccent,
+  onFont,
+  onDensity,
+  onLang,
+}: AccountScreenProps) {
   const me = ME;
 
   return (
@@ -125,6 +149,20 @@ export function AccountScreen({ t }: AccountScreenProps) {
         <Stat icon="clock" label="Stunden gespielt" value="51" />
         <Stat icon="star" label="Lieblingsplatz" value="Center" />
       </div>
+
+      <AppearanceSettings
+        theme={theme}
+        accent={accent}
+        font={font}
+        density={density}
+        lang={lang}
+        onTheme={onTheme}
+        onAccent={onAccent}
+        onFont={onFont}
+        onDensity={onDensity}
+        onLang={onLang}
+        t={t}
+      />
     </div>
   );
 }
