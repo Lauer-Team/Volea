@@ -34,3 +34,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Inbox — nur ablegen, nicht committen (Ziel siehe inbox/ZIEL.txt)
+inbox/*
+!inbox/.gitkeep
+!inbox/ZIEL.txt
+!inbox/SO-LEGST-DU-ES-AB.txt
+
