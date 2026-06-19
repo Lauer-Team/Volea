@@ -12,7 +12,7 @@ LOG="${INBOX_LOG:-${HOME}/Library/Logs/projects-inbox.log}"
 LOCKDIR="${TMPDIR:-/tmp}/projects-inbox-here-$(echo "$REPO_ROOT" | shasum | cut -c1-8).lock.d"
 
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/id_ed25519_hetzner}"
-SERVER="${SERVER_USER:-jjl}@${SERVER_HOST:-138.199.159.170}"
+SERVER="${SERVER_USER:-jjl}@${SERVER_HOST:-jjl-server-prod-01.tailbbda14.ts.net}"
 REMOTE_BASE="/home/jjl/projects"
 SKIP_VPS="${SKIP_VPS:-0}"
 SKIP_PUSH="${SKIP_PUSH:-0}"
