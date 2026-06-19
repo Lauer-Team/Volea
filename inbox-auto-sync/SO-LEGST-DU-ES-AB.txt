@@ -1,0 +1,15 @@
+Projekt-Inbox — Dateien & Ordner ablegen
+=========================================
+
+Lege Dateien oder Ordner in diesen inbox-auto-sync/-Ordner. Fertig.
+
+Wo es funktioniert (gleiche Logik überall):
+  • Mac:   projects/Volea/inbox-auto-sync/  (~1 Min Auto-Sync)
+  • VPS:   ~/projects/Volea/inbox-auto-sync/  (~1 Min Auto-Sync)
+  • GitHub: Datei in inbox-auto-sync/ hochladen & committen → Action läuft
+
+Danach liegt alles in: docs/
+
+Ziel ändern: inbox-auto-sync/ZIEL.txt (eine Zeile)
+Log Mac: ~/Library/Logs/projects-inbox.log
+Log VPS: ~/projects/Server/backups/projects-inbox-cron.log

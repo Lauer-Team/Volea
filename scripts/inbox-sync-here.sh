@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ein Repo: inbox/ → Zielordner (ZIEL.txt), commit, push, optional VPS pull.
+# Ein Repo: inbox-auto-sync/ → Zielordner (ZIEL.txt), commit, push, optional VPS pull.
 # Aufruf: REPO_ROOT=/pfad/zum/repo bash projects-inbox-here.sh [default-ziel]
 # Im Repo: bash scripts/inbox-sync-here.sh
 set -euo pipefail
@@ -7,7 +7,7 @@ set -euo pipefail
 DEFAULT_TARGET="${1:-docs}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
-INBOX="$REPO_ROOT/inbox"
+INBOX="$REPO_ROOT/inbox-auto-sync"
 LOG="${INBOX_LOG:-${HOME}/Library/Logs/projects-inbox.log}"
 LOCKDIR="${TMPDIR:-/tmp}/projects-inbox-here-$(echo "$REPO_ROOT" | shasum | cut -c1-8).lock.d"
 
@@ -94,7 +94,7 @@ done
 log "→ ${target_rel}/: ${moved[*]}"
 
 cd "$REPO_ROOT"
-git add -- "$target_rel" inbox/
+git add -- "$target_rel" inbox-auto-sync/
 
 if git diff --cached --quiet; then
   log "nichts zu committen."

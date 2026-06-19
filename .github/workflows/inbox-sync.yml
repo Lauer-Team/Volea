@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, master]
     paths:
-      - 'inbox/**'
+      - 'inbox-auto-sync/**'
   workflow_dispatch:
 
 permissions:
